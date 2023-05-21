@@ -1,0 +1,15 @@
+url: http://localhost:8123
+token: YOUR_TOKEN
+objects:
+  google-home:
+    id: media_player.gh
+    type: player
+  some-plug:
+    id: switch.some_plug
+    type: plug
+  hall-lamp:
+    id: light.hall_lampe
+    type: dimmable-lamp
+  tv:
+    id: media_player.some_tv
+    type: tv

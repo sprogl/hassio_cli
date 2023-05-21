@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+import argparse
+import devices.objects as dev
+import exceptions.exceptions as exceptions
+import devices.api as api
+import yaml
+
+config_path = "config.yaml"
+# config_path = "/etc/hassio/config.yaml"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-d", "--device", help="the device you need to modify")
+parser.add_argument("-a", "--action", help="the action to perform on the device")
+args = parser.parse_args()
+
+if __name__ == "__main__":
+    with open(config_path, "r") as config_file:
+        config = yaml.safe_load(config_file)
+
+    api_iface = api.API_interface(url=config["url"], token=config["token"])
+
+    if args.device:
+        if args.device in config["objects"].keys():
+            id = config["objects"][args.device]["id"]
+            type = config["objects"][args.device]["type"]
+            device = dev.parse_object(object_type=type, id=id, api_iface=api_iface)
+        else:
+            raise exceptions.WrongInput
+    else:
+        raise exceptions.NoInput
+
+    if args.action:
+        response = device[args.action]
+        print(response)
+    else:
+        raise exceptions.NoInput
