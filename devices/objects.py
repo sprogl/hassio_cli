@@ -41,6 +41,13 @@ class Hassiodevice(object):
         data = json.loads(response)
         self._data = data
 
+    def get_state(self) -> str:
+        self._update()
+        return self._data["state"]
+
+    def _is_on(self) -> bool:
+        return self._data["state"] != "off"
+
 
 class DimmableLamp(Hassiodevice):
     def __init__(self, id: str, api_iface: devices.api.API_interface):
@@ -68,7 +75,15 @@ class DimmableLamp(Hassiodevice):
         return self._api_iface.post(endpoint=endpoint, data=data)
 
     def parse_action(self, action_str: str) -> str:
-        if action_str == "on":
+        if action_str == "is-on":
+            self._update()
+            if self._is_on():
+                return "yes"
+            else:
+                return "no"
+        elif action_str == "get-state":
+            return self.get_state()
+        elif action_str == "on":
             return self.turn_on()
         elif action_str == "off":
             return self.turn_off()
@@ -98,7 +113,15 @@ class Plug(Hassiodevice):
         return self._api_iface.post(endpoint=endpoint, data=data)
 
     def parse_action(self, action_str: str) -> str:
-        if action_str == "on":
+        if action_str == "is-on":
+            self._update()
+            if self._is_on():
+                return "yes"
+            else:
+                return "no"
+        elif action_str == "get-state":
+            return self.get_state()
+        elif action_str == "on":
             return self.turn_on()
         elif action_str == "off":
             return self.turn_off()
@@ -125,7 +148,15 @@ class Home(Hassiodevice):
         return self._api_iface.post(endpoint=endpoint, data=data)
 
     def parse_action(self, action_str: str) -> str:
-        if action_str == "on":
+        if action_str == "is-on":
+            self._update()
+            if self._is_on():
+                return "yes"
+            else:
+                return "no"
+        elif action_str == "get-state":
+            return self.get_state()
+        elif action_str == "on":
             return self.turn_on()
         elif action_str == "off":
             return self.turn_off()
@@ -159,10 +190,6 @@ class Player(Hassiodevice):
         data = json.loads(response)
         self._data = data
 
-    def get_state(self) -> str:
-        self._update()
-        return self._data["state"]
-
     def turn_on(self) -> str:
         endpoint = "/api/services/media_player/turn_on"
         data = {"entity_id": self._id}
@@ -177,14 +204,14 @@ class Player(Hassiodevice):
         endpoint = "/api/services/media_player/media_play"
         data = {"entity_id": self._id}
         self._update()
-        if self._data["state"] != "off":
+        if self._is_on():
             return self._api_iface.post(endpoint=endpoint, data=data)
 
     def pause(self) -> str:
         endpoint = "/api/services/media_player/media_pause"
         data = {"entity_id": self._id}
         self._update()
-        if self._data["state"] != "off":
+        if self._is_on():
             return self._api_iface.post(endpoint=endpoint, data=data)
         else:
             raise exceptions.OffDevice
@@ -193,14 +220,14 @@ class Player(Hassiodevice):
         endpoint = "/api/services/media_player/media_stop"
         data = {"entity_id": self._id}
         self._update()
-        if self._data["state"] != "off":
+        if self._is_on():
             return self._api_iface.post(endpoint=endpoint, data=data)
         else:
             raise exceptions.OffDevice
 
     def is_mute(self) -> bool:
         self._update()
-        if self._data["state"] != "off":
+        if self._is_on():
             return self._data["is_volume_muted"]
         else:
             raise exceptions.OffDevice
@@ -208,7 +235,7 @@ class Player(Hassiodevice):
     def mute(self) -> str:
         endpoint = "/api/services/media_player/volume_mute"
         self._update()
-        if self._data["state"] != "off":
+        if self._is_on():
             data = {
                 "entity_id": self._id,
                 "is_volume_muted": self._data["is_volume_muted"],
@@ -219,7 +246,7 @@ class Player(Hassiodevice):
 
     def get_volume(self) -> str:
         self._update()
-        if self._data["state"] != "off":
+        if self._is_on():
             return str(round(1e2 * self._data["attributes"]["volume_level"]))
         else:
             raise exceptions.OffDevice
@@ -230,13 +257,21 @@ class Player(Hassiodevice):
         endpoint = "/api/services/media_player/volume_set"
         data = {"entity_id": self._id, "volume_level": 1e-2 * percentage}
         self._update()
-        if self._data["state"] != "off":
+        if self._is_on():
             return self._api_iface.post(endpoint=endpoint, data=data)
         else:
             raise exceptions.OffDevice
 
     def _parse_action(self, action_str: str) -> str:
-        if action_str == "on":
+        if action_str == "is-on":
+            self._update()
+            if self._is_on():
+                return "yes"
+            else:
+                return "no"
+        elif action_str == "get-state":
+            return self.get_state()
+        elif action_str == "on":
             return self.turn_on()
         elif action_str == "off":
             return self.turn_off()
@@ -253,8 +288,6 @@ class Player(Hassiodevice):
                 return "no"
         elif action_str == "mute":
             return self.mute()
-        elif action_str == "get-state":
-            return self.get_state()
         elif action_str == "get-vol":
             return self.get_volume()
         elif re.compile("set-vol-[0-9]+").fullmatch(action_str):
@@ -286,7 +319,15 @@ class TV(Player):
         return self._api_iface.post(endpoint=endpoint, data=data)
 
     def parse_action(self, action_str: str) -> str:
-        if action_str == "on":
+        if action_str == "is-on":
+            self._update()
+            if self._is_on():
+                return "yes"
+            else:
+                return "no"
+        elif action_str == "get-state":
+            return self.get_state()
+        elif action_str == "on":
             return self.turn_on()
         elif action_str == "off":
             return self.turn_off()
@@ -303,8 +344,6 @@ class TV(Player):
                 return "no"
         elif action_str == "mute":
             return self.mute()
-        elif action_str == "get-state":
-            return self.get_state()
         elif action_str == "get-vol":
             return self.get_volume()
         elif re.compile("set-vol-[0-9]+").fullmatch(action_str):
