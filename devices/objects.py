@@ -2,6 +2,7 @@ import re
 import exceptions.exceptions as exceptions
 import devices.api
 import json
+import requests.exceptions
 
 valid_types = ["dimmable-lamp", "plug", "home", "player", "tv"]
 
@@ -20,10 +21,21 @@ def parse_object(
     elif object_type == "tv":
         return TV(id=id, api_iface=api_iface)
     else:
-        raise exceptions.WrongInput
+        raise exceptions.InvalidType(object_type)
 
 
 class Hassiodevice(object):
+    def __init__(self, id: str, api_iface: devices.api.API_interface):
+        self._id = id
+        self._api_iface = api_iface
+        # self._update()
+        try:
+            self._update()
+        except requests.exceptions.ConnectionError:
+            raise exceptions.HassioUnreachable(api_iface["url"])
+        if str(self._data) == "{'message': 'Entity not found.'}":
+            raise exceptions.InvalidID(id)
+
     def __getitem__(self, key) -> str:
         try:
             if isinstance(key, str):
@@ -50,10 +62,6 @@ class Hassiodevice(object):
 
 
 class DimmableLamp(Hassiodevice):
-    def __init__(self, id: str, api_iface: devices.api.API_interface):
-        self._id = id
-        self._api_iface = api_iface
-
     def __str__(self) -> str:
         return f'dimmable lamp with the id "{self._id}"'
 
@@ -99,14 +107,10 @@ class DimmableLamp(Hassiodevice):
             percentage = int(action_str[7:])
             return self.set_brightness(percentage)
         else:
-            raise exceptions.WrongInput
+            raise exceptions.ActionNotExists(action_str)
 
 
 class Plug(Hassiodevice):
-    def __init__(self, id: str, api_iface: devices.api.API_interface):
-        self._id = id
-        self._api_iface = api_iface
-
     def __str__(self) -> str:
         return f'smart plug with the id "{self._id}"'
 
@@ -142,14 +146,10 @@ class Plug(Hassiodevice):
         elif action_str == "off":
             return self.turn_off()
         else:
-            raise exceptions.WrongInput
+            raise exceptions.ActionNotExists(action_str)
 
 
 class Home(Hassiodevice):
-    def __init__(self, id: str, api_iface: devices.api.API_interface):
-        self._id = id
-        self._api_iface = api_iface
-
     def __str__(self) -> str:
         return f'home with the id "{self._id}"'
 
@@ -185,15 +185,10 @@ class Home(Hassiodevice):
         elif action_str == "off":
             return self.leave()
         else:
-            raise exceptions.WrongInput
+            raise exceptions.ActionNotExists(action_str)
 
 
 class Player(Hassiodevice):
-    def __init__(self, id: str, api_iface: devices.api.API_interface):
-        self._id = id
-        self._api_iface = api_iface
-        self._update()
-
     def __getitem__(self, key) -> str:
         try:
             if isinstance(key, str):
@@ -326,28 +321,23 @@ class Player(Hassiodevice):
             percentage = int(action_str[8:])
             return self.set_volume(percentage)
         else:
-            raise exceptions.WrongInput
+            raise exceptions.ActionNotExists(action_str)
 
 
 class TV(Player):
-    _channel_chrome_cast = "cast"
-    _channel_erste = "erste"
-    _channel_zdf = "zdf"
-    _channel_youtube = "yt"
+    _channels_dict = {
+        "cast": "HDMI",
+        "erste": "ARD Mediathek",
+        "zdf": "ZDF mediathek",
+        "yt": "YouTube",
+    }
 
     def set_channel(self, channel: str) -> str:
         endpoint = "/api/services/media_player/select_source"
-        match channel:
-            case self._channel_chrome_cast:
-                data = {"entity_id": self._id, "source": "HDMI"}
-            case self._channel_erste:
-                data = {"entity_id": self._id, "source": "ARD Mediathek"}
-            case self._channel_zdf:
-                data = {"entity_id": self._id, "source": "ZDF mediathek"}
-            case self._channel_youtube:
-                data = {"entity_id": self._id, "source": "YouTube"}
-            case _:
-                raise exceptions.WrongInput
+        try:
+            data = {"entity_id": self._id, "source": self._channels_dict[channel]}
+        except KeyError:
+            raise exceptions.WrongInput
         return self._api_iface.post(endpoint=endpoint, data=data)
 
     def parse_action(self, action_str: str) -> str:
@@ -385,4 +375,4 @@ class TV(Player):
             channel = action_str[7:]
             return self.set_channel(channel)
         else:
-            raise exceptions.WrongInput
+            raise exceptions.ActionNotExists(action_str)

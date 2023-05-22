@@ -10,8 +10,9 @@ config_path = "config.yaml"
 # config_path = "/etc/hassio/config.yaml"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-d", "--device", help="the device you need to modify")
-parser.add_argument("-a", "--action", help="the action to perform on the device")
+parser.add_argument("action", help="the action to perform on the device")
+parser.add_argument("device", help="the device you need to modify")
+parser.add_argument("-c", "--config", help="the path to the config file")
 args = parser.parse_args()
 
 if __name__ == "__main__":
@@ -20,18 +21,12 @@ if __name__ == "__main__":
 
     api_iface = api.API_interface(url=config["url"], token=config["token"])
 
-    if args.device:
-        if args.device in config["objects"].keys():
-            id = config["objects"][args.device]["id"]
-            type = config["objects"][args.device]["type"]
-            device = dev.parse_object(object_type=type, id=id, api_iface=api_iface)
-        else:
-            raise exceptions.WrongInput
+    if args.device in config["objects"].keys():
+        id = config["objects"][args.device]["id"]
+        type = config["objects"][args.device]["type"]
+        device = dev.parse_object(object_type=type, id=id, api_iface=api_iface)
     else:
-        raise exceptions.NoInput
+        raise exceptions.DeviceNotExists(args.device)
 
-    if args.action:
-        response = device[args.action]
-        print(response)
-    else:
-        raise exceptions.NoInput
+    response = device[args.action]
+    print(response)
