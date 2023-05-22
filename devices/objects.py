@@ -1,6 +1,7 @@
 import re
 import exceptions.exceptions as exceptions
 import devices.api
+import json
 
 valid_types = ["dimmable-lamp", "plug", "home", "player", "tv"]
 
@@ -9,7 +10,7 @@ def parse_object(
     object_type: str, id: str, api_iface: devices.api.API_interface
 ) -> object:
     if object_type == "dimmable-lamp":
-        return Dimmable_lamp(id=id, api_iface=api_iface)
+        return DimmableLamp(id=id, api_iface=api_iface)
     elif object_type == "plug":
         return Plug(id=id, api_iface=api_iface)
     elif object_type == "home":
@@ -22,16 +23,29 @@ def parse_object(
         raise exceptions.WrongInput
 
 
-class Dimmable_lamp(object):
+class Hassiodevice(object):
+    def __getitem__(self, key) -> str:
+        try:
+            if isinstance(key, str):
+                return self._parse_action(key)
+            else:
+                raise KeyError
+        except exceptions.OffDevice:
+            return "the device is off"
+        except exceptions.WrongInput:
+            return "wrong iput format"
+
+    def _update(self):
+        endpoint = f"/api/states/{self._id}"
+        response = self._api_iface.get(endpoint=endpoint)
+        data = json.loads(response)
+        self._data = data
+
+
+class DimmableLamp(Hassiodevice):
     def __init__(self, id: str, api_iface: devices.api.API_interface):
         self._id = id
         self._api_iface = api_iface
-
-    def __getitem__(self, key) -> str:
-        if isinstance(key, str):
-            return self.parse_action(key)
-        else:
-            raise KeyError
 
     def __str__(self) -> str:
         return f'dimmable lamp with the id "{self._id}"'
@@ -65,16 +79,10 @@ class Dimmable_lamp(object):
             raise exceptions.WrongInput
 
 
-class Plug(object):
+class Plug(Hassiodevice):
     def __init__(self, id: str, api_iface: devices.api.API_interface):
         self._id = id
         self._api_iface = api_iface
-
-    def __getitem__(self, key) -> str:
-        if isinstance(key, str):
-            return self.parse_action(key)
-        else:
-            raise KeyError
 
     def __str__(self) -> str:
         return f'smart plug with the id "{self._id}"'
@@ -98,16 +106,10 @@ class Plug(object):
             raise exceptions.WrongInput
 
 
-class Home(object):
+class Home(Hassiodevice):
     def __init__(self, id: str, api_iface: devices.api.API_interface):
         self._id = id
         self._api_iface = api_iface
-
-    def __getitem__(self, key) -> str:
-        if isinstance(key, str):
-            return self.parse_action(key)
-        else:
-            raise KeyError
 
     def __str__(self) -> str:
         return f'home with the id "{self._id}"'
@@ -131,19 +133,35 @@ class Home(object):
             raise exceptions.WrongInput
 
 
-class Player(object):
+class Player(Hassiodevice):
     def __init__(self, id: str, api_iface: devices.api.API_interface):
         self._id = id
         self._api_iface = api_iface
+        self._update()
 
     def __getitem__(self, key) -> str:
-        if isinstance(key, str):
-            return self.parse_action(key)
-        else:
-            raise KeyError
+        try:
+            if isinstance(key, str):
+                return self._parse_action(key)
+            else:
+                raise KeyError
+        except exceptions.OffDevice:
+            return "the device is off"
+        except exceptions.WrongInput:
+            return "wrong iput format"
 
     def __str__(self) -> str:
-        return f'tv with the id "{self._id}"'
+        return f'madia player with the id "{self._id}"'
+
+    def _update(self):
+        endpoint = f"/api/states/{self._id}"
+        response = self._api_iface.get(endpoint=endpoint)
+        data = json.loads(response)
+        self._data = data
+
+    def get_state(self) -> str:
+        self._update()
+        return self._data["state"]
 
     def turn_on(self) -> str:
         endpoint = "/api/services/media_player/turn_on"
@@ -158,31 +176,66 @@ class Player(object):
     def play(self) -> str:
         endpoint = "/api/services/media_player/media_play"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if self._data["state"] != "off":
+            return self._api_iface.post(endpoint=endpoint, data=data)
 
     def pause(self) -> str:
         endpoint = "/api/services/media_player/media_pause"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if self._data["state"] != "off":
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            raise exceptions.OffDevice
 
     def stop(self) -> str:
         endpoint = "/api/services/media_player/media_stop"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if self._data["state"] != "off":
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            raise exceptions.OffDevice
 
-    # def mute(self) -> str:
-    #     endpoint = "/api/services/media_player/volume_mute"
-    #     data = {"entity_id": self._id, "is_volume_muted": False}
-    #     return self._api_iface.post(endpoint=endpoint, data=data)
+    def is_mute(self) -> bool:
+        self._update()
+        if self._data["state"] != "off":
+            return self._data["is_volume_muted"]
+        else:
+            raise exceptions.OffDevice
+
+    def mute(self) -> str:
+        endpoint = "/api/services/media_player/volume_mute"
+        self._update()
+        if self._data["state"] != "off":
+            data = {
+                "entity_id": self._id,
+                "is_volume_muted": self._data["is_volume_muted"],
+            }
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            raise exceptions.OffDevice
+
+    def get_volume(self) -> str:
+        self._update()
+        if self._data["state"] != "off":
+            return str(round(1e2 * self._data["attributes"]["volume_level"]))
+        else:
+            raise exceptions.OffDevice
 
     def set_volume(self, percentage: int) -> str:
         if percentage < 0 or percentage > 100:
             raise exceptions.WrongInput
         endpoint = "/api/services/media_player/volume_set"
         data = {"entity_id": self._id, "volume_level": 1e-2 * percentage}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if self._data["state"] != "off":
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            raise exceptions.OffDevice
 
-    def parse_action(self, action_str: str) -> str:
+    def _parse_action(self, action_str: str) -> str:
         if action_str == "on":
             return self.turn_on()
         elif action_str == "off":
@@ -193,8 +246,17 @@ class Player(object):
             return self.pause()
         elif action_str == "stop":
             return self.stop()
-        # elif action_str == "mute":
-        #     return self.mute()
+        elif action_str == "is-mute":
+            if self.is_mute():
+                return "yes"
+            else:
+                return "no"
+        elif action_str == "mute":
+            return self.mute()
+        elif action_str == "get-state":
+            return self.get_state()
+        elif action_str == "get-vol":
+            return self.get_volume()
         elif re.compile("set-vol-[0-9]+").fullmatch(action_str):
             percentage = int(action_str[8:])
             return self.set_volume(percentage)
@@ -234,8 +296,17 @@ class TV(Player):
             return self.pause()
         elif action_str == "stop":
             return self.stop()
-        # elif action_str == "mute":
-        #     return self.mute()
+        elif action_str == "is-mute":
+            if self.is_mute():
+                return "yes"
+            else:
+                return "no"
+        elif action_str == "mute":
+            return self.mute()
+        elif action_str == "get-state":
+            return self.get_state()
+        elif action_str == "get-vol":
+            return self.get_volume()
         elif re.compile("set-vol-[0-9]+").fullmatch(action_str):
             percentage = int(action_str[8:])
             return self.set_volume(percentage)

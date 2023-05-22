@@ -19,5 +19,5 @@ class API_interface(object):
         return response.text
 
     def get(self, endpoint: str) -> str:
-        response = requests.post(url=f"{self._url}{endpoint}", headers=self._headers)
+        response = requests.get(url=f"{self._url}{endpoint}", headers=self._headers)
         return response.text
