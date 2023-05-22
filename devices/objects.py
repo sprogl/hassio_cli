@@ -60,12 +60,20 @@ class DimmableLamp(Hassiodevice):
     def turn_on(self) -> str:
         endpoint = "/api/services/light/turn_on"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if not self._is_on():
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            return "it is already on"
 
     def turn_off(self) -> str:
         endpoint = "/api/services/light/turn_off"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if self._is_on():
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            return "it is already off"
 
     def set_brightness(self, percentage: int) -> str:
         if percentage < 0 or percentage > 100:
@@ -105,12 +113,20 @@ class Plug(Hassiodevice):
     def turn_on(self) -> str:
         endpoint = "/api/services/switch/turn_on"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if not self._is_on():
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            return "it is already on"
 
     def turn_off(self) -> str:
         endpoint = "/api/services/switch/turn_off"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if self._is_on():
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            return "it is already off"
 
     def parse_action(self, action_str: str) -> str:
         if action_str == "is-on":
@@ -137,15 +153,23 @@ class Home(Hassiodevice):
     def __str__(self) -> str:
         return f'home with the id "{self._id}"'
 
-    def turn_on(self) -> str:
+    def occupy(self) -> str:
         endpoint = "/api/services/input_boolean/turn_on"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if not self._is_on():
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            return "home is already occupied"
 
-    def turn_off(self) -> str:
+    def leave(self) -> str:
         endpoint = "/api/services/input_boolean/turn_off"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if self._is_on():
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            return "home is already left"
 
     def parse_action(self, action_str: str) -> str:
         if action_str == "is-on":
@@ -157,9 +181,9 @@ class Home(Hassiodevice):
         elif action_str == "get-state":
             return self.get_state()
         elif action_str == "on":
-            return self.turn_on()
+            return self.occupy()
         elif action_str == "off":
-            return self.turn_off()
+            return self.leave()
         else:
             raise exceptions.WrongInput
 
@@ -193,12 +217,20 @@ class Player(Hassiodevice):
     def turn_on(self) -> str:
         endpoint = "/api/services/media_player/turn_on"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if not self._is_on():
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            return "it is already on"
 
     def turn_off(self) -> str:
         endpoint = "/api/services/media_player/turn_off"
         data = {"entity_id": self._id}
-        return self._api_iface.post(endpoint=endpoint, data=data)
+        self._update()
+        if self._is_on():
+            return self._api_iface.post(endpoint=endpoint, data=data)
+        else:
+            return "it is already off"
 
     def play(self) -> str:
         endpoint = "/api/services/media_player/media_play"
