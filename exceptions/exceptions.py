@@ -20,6 +20,11 @@ class InvalidType(Exception):
         )
 
 
+class InvalidToken(Exception):
+    def __init__(self):
+        super().__init__("token is invalid")
+
+
 class InvalidID(Exception):
     def __init__(self, id):
         super().__init__(f"wrong config format: the device ID {id} is not valid")
@@ -33,6 +38,13 @@ class HassioUnreachable(Exception):
 class InvalidURL(Exception):
     def __init__(self, url):
         super().__init__(f"wrong config format: invalid url format, {url}")
+
+
+class URLTokenNotPresent(Exception):
+    def __init__(self):
+        super().__init__(
+            "wrong config format: either url or token field is missing from the config file"
+        )
 
 
 class OffDevice(Exception):

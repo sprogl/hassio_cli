@@ -19,7 +19,10 @@ if __name__ == "__main__":
     with open(config_path, "r") as config_file:
         config = yaml.safe_load(config_file)
 
-    api_iface = api.API_interface(url=config["url"], token=config["token"])
+    try:
+        api_iface = api.API_interface(url=config["url"], token=config["token"])
+    except KeyError:
+        raise exceptions.URLTokenNotPresent()
 
     if args.device in config["objects"].keys():
         id = config["objects"][args.device]["id"]

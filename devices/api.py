@@ -27,9 +27,12 @@ class API_interface(object):
             raise exceptions.InvalidURL(self._url)
 
         try:
-            self.get(endpoint="/api/")
+            response = self.get(endpoint="/api/")
         except:
             raise exceptions.HassioUnreachable(self._url)
+
+        if response == "401: Unauthorized":
+            raise exceptions.InvalidToken
 
     def __str__(self) -> str:
         return f"{self._url}/lovelace/default_view"

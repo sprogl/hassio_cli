@@ -28,7 +28,6 @@ class Hassiodevice(object):
     def __init__(self, id: str, api_iface: devices.api.API_interface):
         self._id = id
         self._api_iface = api_iface
-        # self._update()
         try:
             self._update()
         except requests.exceptions.ConnectionError:
@@ -60,6 +59,9 @@ class Hassiodevice(object):
     def _is_on(self) -> bool:
         return self._data["state"] != "off"
 
+    def _parse_action(self, action_str: str) -> str:
+        return ""
+
 
 class DimmableLamp(Hassiodevice):
     def __str__(self) -> str:
@@ -90,7 +92,7 @@ class DimmableLamp(Hassiodevice):
         data = {"entity_id": self._id, "brightness": round(2.55 * percentage)}
         return self._api_iface.post(endpoint=endpoint, data=data)
 
-    def parse_action(self, action_str: str) -> str:
+    def _parse_action(self, action_str: str) -> str:
         if action_str == "is-on":
             self._update()
             if self._is_on():
@@ -132,7 +134,7 @@ class Plug(Hassiodevice):
         else:
             return "it is already off"
 
-    def parse_action(self, action_str: str) -> str:
+    def _parse_action(self, action_str: str) -> str:
         if action_str == "is-on":
             self._update()
             if self._is_on():
@@ -171,7 +173,7 @@ class Home(Hassiodevice):
         else:
             return "home is already left"
 
-    def parse_action(self, action_str: str) -> str:
+    def _parse_action(self, action_str: str) -> str:
         if action_str == "is-on":
             self._update()
             if self._is_on():
@@ -340,7 +342,7 @@ class TV(Player):
             raise exceptions.WrongInput
         return self._api_iface.post(endpoint=endpoint, data=data)
 
-    def parse_action(self, action_str: str) -> str:
+    def _parse_action(self, action_str: str) -> str:
         if action_str == "is-on":
             self._update()
             if self._is_on():
